@@ -2,6 +2,8 @@
 #include <unistd.h>
 #include <stdlib.h>
 #include <stdio.h>
+#include <pthread.h>
+#include <stdbool.h>
 
 // Optional: use these functions to add debug or error prints to your application
 #define DEBUG_LOG(msg,...)
@@ -10,7 +12,6 @@
 
 void* threadfunc(void* thread_param)
 {
-
     // TODO: wait, obtain mutex, wait, release mutex as described by thread_data structure
     // hint: use a cast like the one below to obtain thread arguments from your parameter
     //struct thread_data* thread_func_args = (struct thread_data *) thread_param;
