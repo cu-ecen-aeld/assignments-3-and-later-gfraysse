@@ -21,7 +21,7 @@
 #             ios
 if [ $# != 2 ]
 then
-    echo "Incorrect number of arguments expected 2 got "$#". Usage: finder.sh filesdir searchstr"
+    echo "Incorrect number of arguments expected 2 got "$#". Usage: writer.sh filesdir searchstr"
     exit 1
 fi
 
