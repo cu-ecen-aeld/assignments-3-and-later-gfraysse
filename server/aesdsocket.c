@@ -13,7 +13,6 @@
 #include <arpa/inet.h>
 #include <pthread.h>
 #include <sys/time.h>
-
 #include "queue.h"
 
 #define TIMER_BUFF_SIZE 	100
