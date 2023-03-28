@@ -16,6 +16,7 @@
 #include "queue.h"
 
 #define TIMER_BUFF_SIZE 	100
+#define BUF_LEN 1
 
 const char *socket_filename = "/var/tmp/aesdsocketdata";
 const char *port= "9000";
@@ -45,17 +46,18 @@ void timestamp_handler(int signo) {
 	return;
     }
 
-    localtime_r(&real_time,&cur_time); // Converts to local time
+    localtime_r(&real_time, &cur_time); // Converts to local time
     char time_buff[TIMER_BUFF_SIZE];
-    time_length = strftime(time_buff, TIMER_BUFF_SIZE, "timestamp:%a, %d %b %Y %T %z\n",&cur_time);
+    time_length = strftime(time_buff, TIMER_BUFF_SIZE, "timestamp:%a, %d %b %Y %T %z\n", &cur_time);
     if (!time_length) {
         syslog(LOG_ERR, "Unable to generate timestamp");
 	return;
     }
 
     pthread_mutex_lock(&mutex);
-    total_packet_bytes += time_length; //Add total bytes received by all connections to the file
+    total_packet_bytes += time_length; // Add total bytes received by all connections to the file
     bytes_written = write(g_fd, time_buff, time_length);
+    fsync(g_fd);
     pthread_mutex_unlock(&mutex);
     if (bytes_written == -1) {
 	syslog(LOG_ERR,"Couldn't write bytes to the file");
@@ -131,7 +133,7 @@ void* thread_packet_data(void* thread_in_action) {
     if(thread_in_action == NULL)
 	return NULL;	
 
-    //logic to receive packets from client
+    // logic to receive packets from client
     thread_nodes_t *t_node_params= (thread_nodes_t *)thread_in_action;
     temp_buff = (char*)malloc(sizeof(char));
     if (temp_buff == NULL) {
@@ -141,11 +143,13 @@ void* thread_packet_data(void* thread_in_action) {
 	return NULL;
     }	
     while (!conn_close && !handler_status) {
+	// usleep(1);
 	new_line = 0;
 	while((!new_line) && (!conn_close) && (!handler_status)) {
-	    recv_status = recv(t_node_params -> accept_connection,
+	    // usleep(1);
+	    recv_status = recv(t_node_params->accept_connection,
 			       temp_buff + bytes_per_packet-1,
-			       1,
+			       BUF_LEN,
 			       0);
 	    if (recv_status == -1) {
 		syslog(LOG_ERR, "Cannot receive bytes");
@@ -162,7 +166,7 @@ void* thread_packet_data(void* thread_in_action) {
 		    new_line = 1;
 		else {
 		    bytes_per_packet ++;
-		    temp_buff = realloc(temp_buff, (bytes_per_packet)*sizeof(char)); // allocate
+		    temp_buff = realloc(temp_buff, (bytes_per_packet) * sizeof(char)); // allocate
 		    if (temp_buff == NULL) {
 			syslog(LOG_ERR, "Couldn't allocate more memory");
 			t_node_params->thread_complete = true;
@@ -176,13 +180,15 @@ void* thread_packet_data(void* thread_in_action) {
 	// Check for new line
 	if (new_line) {
 	    pthread_mutex_lock(&mutex); 
-	    if(write(t_node_params -> file_fd, temp_buff,bytes_per_packet) < bytes_per_packet) {
+	    if(write(t_node_params->file_fd, temp_buff, bytes_per_packet) < bytes_per_packet) {
 		syslog(LOG_ERR, "Cannot write bytes to the file");
 		t_node_params->thread_complete = true;
 		close(t_node_params->accept_connection); 
+		pthread_mutex_unlock(&mutex); 
 		return NULL;
 	    }
-	    total_packet_bytes+=bytes_per_packet; // Accumulate total packet bytes received till now
+	    fsync(t_node_params->file_fd);
+	    total_packet_bytes += bytes_per_packet; // Accumulate total packet bytes received till now
 	    pthread_mutex_unlock(&mutex); 
 	    bytes_per_packet = 1; 	   				
 	    temp_buff = realloc(temp_buff, (bytes_per_packet) * sizeof(char)); 
@@ -192,7 +198,6 @@ void* thread_packet_data(void* thread_in_action) {
 		close(t_node_params->accept_connection); 
 		return NULL;
 	    }
-
 	    // Read bytes from file and send to socket
 	    if (write_pdata_file(t_node_params->file_fd, t_node_params->accept_connection) == -1) {
 		t_node_params->thread_complete = true;
@@ -221,6 +226,7 @@ void threads_tasks(int file_fd) {
 
     // Connections accepted till a signal handler is called
     while (!handler_status) {
+	// usleep(1);
 	accept_connection = accept(socket_fd, (struct sockaddr *)&client_address, &address_length);
 	if(accept_connection == -1) {
 	    syslog(LOG_ERR, "Connection cannot be accepted");
@@ -228,11 +234,11 @@ void threads_tasks(int file_fd) {
 	}
 	else {
 	    thread_node = (struct thread_nodes *)malloc(sizeof(struct thread_nodes));
-	    thread_node-> thread_complete = false;									
-	    thread_node-> accept_connection = accept_connection;
-	    thread_node-> file_fd = file_fd; 
-	    syslog(LOG_INFO,"Accepts connection from %s",inet_ntoa(client_address.sin_addr));
-	    if(pthread_create(&thread_node -> thread_id, NULL, thread_packet_data, thread_node) != 0) {
+	    thread_node->thread_complete = false;									
+	    thread_node->accept_connection = accept_connection;
+	    thread_node->file_fd = file_fd; 
+	    syslog(LOG_INFO, "Accepts connection from %s", inet_ntoa(client_address.sin_addr));
+	    if(pthread_create(&thread_node->thread_id, NULL, thread_packet_data, thread_node) != 0) {
 		syslog(LOG_ERR, "Unable to create thread");
 		break; 
 	    } 
@@ -245,7 +251,7 @@ void threads_tasks(int file_fd) {
 			
 	    total_connection++;
 	    SLIST_FOREACH_SAFE(active_thread, &head, entries, store) {
-		if(active_thread -> thread_complete) {
+		if(active_thread->thread_complete) {
 		    pthread_join(active_thread->thread_id, NULL);// Cleanup of thread
 		    SLIST_REMOVE(&head, active_thread, thread_nodes, entries);
 		    free(active_thread);
@@ -269,7 +275,7 @@ void threads_tasks(int file_fd) {
 // Main subroutine
 int main(int argc, char *argv[]) { 	
     struct itimerval timer_count;
-    openlog(NULL,LOG_PID, LOG_USER); // To setup logging with LOG_USER
+    openlog(NULL, LOG_PID, LOG_USER); // To setup logging with LOG_USER
 
     // Initialize mutex for threads and timestamp
     pthread_mutex_init(&mutex, NULL);
@@ -295,7 +301,7 @@ int main(int argc, char *argv[]) {
 
     // To start a daemon process
     if((argc > 1) && strcmp(argv[1], "-d") == 0) {
-	if(daemon(0, 0)==-1) 
+	if(daemon(0, 0) == -1) 
 	{
 	    syslog(LOG_ERR, "Couldn't enter daemon mode");
 	    exit(7);

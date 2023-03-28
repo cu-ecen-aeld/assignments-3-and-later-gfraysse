@@ -1,10 +1,13 @@
-all: aesdsocket
+TARGET = aesdsocket
 
-CROSS_COMPILE = 
-CC ?= $(CROSS_COMPILE)gcc
+all: ${TARGET}
 
-aesdsocket: aesdsocket.c
-	$(CC) aesdsocket.c -lpthread -lrt -o aesdsocket
+CC = $(CROSS_COMPILE)gcc
+CFLAGS  += -g -Wall
+
+${TARGET}: ${TARGET}.c
+	$(CC) ${CFLAGS} ${TARGET}.c -lpthread -lrt -o ${TARGET}
 
 clean:
-	rm -rf *.o aesdsocket 
+	rm -rf *.o ${TARGET}
+	rm -rf /var/tmp/aesdsocketdata
