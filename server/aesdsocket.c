@@ -45,17 +45,17 @@ void timestamp_handler(int signo) {
 	return;
     }
 
-    localtime_r(&real_time,&cur_time); //Converts to local time
+    localtime_r(&real_time,&cur_time); // Converts to local time
     char time_buff[TIMER_BUFF_SIZE];
-    time_length = strftime(time_buff,TIMER_BUFF_SIZE,"timestamp:%a, %d %b %Y %T %z\n",&cur_time);
+    time_length = strftime(time_buff, TIMER_BUFF_SIZE, "timestamp:%a, %d %b %Y %T %z\n",&cur_time);
     if (!time_length) {
-        syslog(LOG_ERR,"Unable to generate timestamp");
+        syslog(LOG_ERR, "Unable to generate timestamp");
 	return;
     }
 
     pthread_mutex_lock(&mutex);
-    total_packet_bytes +=time_length; //Add total bytes received by all connections to the file
-    bytes_written = write(g_fd, time_buff,time_length);
+    total_packet_bytes += time_length; //Add total bytes received by all connections to the file
+    bytes_written = write(g_fd, time_buff, time_length);
     pthread_mutex_unlock(&mutex);
     if (bytes_written == -1) {
 	syslog(LOG_ERR,"Couldn't write bytes to the file");
@@ -81,7 +81,7 @@ void socket_init(void) {
     hints.ai_flags    = AI_PASSIVE;
     hints.ai_family   = AF_INET;
     hints.ai_socktype = SOCK_STREAM;
-    if(getaddrinfo(NULL, port, &hints,&servinfo) !=0) {
+    if(getaddrinfo(NULL, port, &hints, &servinfo) !=0) {
 	syslog(LOG_ERR, "server address cannot be found");
 	exit(1);
     }
@@ -92,7 +92,7 @@ void socket_init(void) {
 	exit(2);
     }
 	
-    if(bind(socket_fd,servinfo->ai_addr,sizeof(struct sockaddr)) == -1) {
+    if(bind(socket_fd, servinfo->ai_addr, sizeof(struct sockaddr)) == -1) {
 	syslog(LOG_ERR, "Unable to bind");
 	freeaddrinfo(servinfo); 			
 	close(socket_fd);
