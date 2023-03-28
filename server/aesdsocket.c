@@ -115,7 +115,9 @@ int write_pdata_file(int file_fd, int accept_connection) {
     pthread_mutex_unlock(&mutex); 
 	
     // Send data packet to the client 
-    if(send(accept_connection, &send_buffer, total_packet_bytes, 0) == -1) {
+    if(send(accept_connection,
+	    &send_buffer,
+	    total_packet_bytes, 0) == -1) {
 	syslog(LOG_ERR, "Unable to send the bytes to the socket");
 	return -1;
     } 
