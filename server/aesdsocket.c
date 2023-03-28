@@ -168,7 +168,7 @@ void* thread_packet_data(void* thread_in_action) {
 		    new_line = 1;
 		else {
 		    bytes_per_packet ++;
-		    temp_buff = realloc(temp_buff, (bytes_per_packet) * sizeof(char)); // allocate
+		    temp_buff = realloc(temp_buff, (bytes_per_packet) * sizeof(char));
 		    if (temp_buff == NULL) {
 			syslog(LOG_ERR, "Couldn't allocate more memory");
 			t_node_params->thread_complete = true;
